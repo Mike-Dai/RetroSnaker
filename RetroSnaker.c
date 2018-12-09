@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <conio.h>
 #include <windows.h>
 #include <time.h>
@@ -16,9 +17,11 @@ int food[2];
 Snake* head;
 int g_direction = 1;//全局变量：蛇的方向 
 int g_score = 0;
-
+int sleeptime = 300;
+int best_score; 
 
 void gotoxy(int a, int b) { HANDLE hout;     COORD coord;     coord.X = a;     coord.Y = b;     hout = GetStdHandle(STD_OUTPUT_HANDLE);     SetConsoleCursorPosition(hout, coord); }
+void Menu();
 void InitSnake();
 void PaintWall();
 void MoveBody();
@@ -28,42 +31,76 @@ int GetFood();
 void PrintScore();
 int TouchWall();
 int BiteSelf();
-int GameOver();
+int Dead();
+void GameOver();
+void LoadInfo();
+void SaveInfo();
 
 int main()
 {
-	
+	Menu();
+	getch();
+	begin:
+	LoadInfo();
+	system("cls");
 	PaintWall();
 	InitSnake();
 	CreateFood();
 	PrintScore();
 	while (1)
 	{
-		
-		/*if ( BiteFood() )
-		{
-		AddScore();
-		AddSnake();
-		AddFood();
-		}
-		if ( BiteSelf() )
-		{
-		GameOver();
-		}*/
 		ChangeDir();
 		MoveBody();
-		if (GameOver() == 1)
+		if (Dead() == 1)
 		{
-			system("cls");
-			printf("GAME OVER\n");
 			break;
 		}
 	}
-	
+	SaveInfo();
+	GameOver();
+	goto begin;
 	return 0;
 }
 
+void LoadInfo()
+{
+	FILE* fp;
+	fp = fopen("SnakeScore.txt","r");
+	if (!fp)
+	{
+		printf("Please create \"SnakeScore.txt\" to save the game data!(⊙o⊙)？");
+	}
+	fscanf(fp, "%d", &best_score);
+	fclose(fp);
+}
 
+void SaveInfo()
+{
+	FILE* fp;
+	fp = fopen("SnakeScore.txt","w");
+	fprintf(fp, "%d", best_score);
+}
+
+void Menu()
+{
+	gotoxy(5,HIGH/3);
+	int i;
+	for (i = 1; i <= WIDTH/2; i++)
+	{
+		printf("※");
+	}
+	printf("\n");
+	gotoxy(5,HIGH*2/3);
+	for (i = 1; i <= WIDTH/2; i++)
+	{
+		printf("※");
+	}
+	printf("\n");
+	gotoxy(20,HIGH/2);
+	printf("RETRO SNAKER");
+	gotoxy(10,HIGH*3/5);
+	printf("Please press any key to start the game");
+}
 
 void PaintWall()
 {
@@ -79,7 +116,7 @@ void PaintWall()
 		gotoxy(WIDTH-1, i);
 		printf("#");
 	}
-	gotoxy(0, HIGH-1);
+	gotoxy(0, HIGH);
 	for (i = 1; i <= WIDTH; i++)
 	{
 		printf("#");
@@ -89,6 +126,9 @@ void PaintWall()
 //头插法初始化蛇身 
 void InitSnake()
 {
+	g_direction = 1;//顺便初始化全局变量 
+	g_score = 0;
+	sleeptime = 300;
 	head = (Snake*)malloc(sizeof(Snake));
 	head->x = WIDTH / 2;
 	head->y = HIGH / 2;
@@ -147,13 +187,13 @@ void MoveBody(){
 	gotoxy(p->next->x,p->next->y);
 	if ( GetFood()==1 ) 
 	{
-		Sleep(500);
+		Sleep(sleeptime);
 		return;
 	}
 	printf(" ");//用空格掩盖蛇尾 
 	free(p->next);//释放蛇尾 
 	p->next = NULL;
-	Sleep(300);
+	Sleep(sleeptime);
 	
 } 
 
@@ -166,15 +206,22 @@ void ChangeDir()
 		switch(c)
 		{
 			case 'w':
-				g_direction = 1;
+				if (g_direction != 2)
+				{
+					g_direction = 1;
+				} 
+				
 				break;
 			case 's':
+				if (g_direction != 1)
 				g_direction = 2;
 				break;
 			case 'a':
+				if (g_direction != 4)
 				g_direction = 3;
 				break;
 			case 'd':
+				if (g_direction != 3) 
 				g_direction = 4;
 				break;	
 		}
@@ -185,8 +232,8 @@ void CreateFood()
 {
 	srand((int)time(NULL));
 	here:
-	food[0] = rand() % WIDTH + 1;
-	food[1] = rand() % HIGH + 1;
+	food[0] = rand() % (WIDTH-2) + 1;//保证食物不出现在墙里 
+	food[1] = rand() % (HIGH-2) + 1;
 	Snake* p = head;
 	while (p != NULL)
 	{
@@ -205,6 +252,18 @@ int GetFood()
 	if (head->x == food[0] && head->y == food[1])//如果吃到食物，即蛇头坐标等于食物坐标 
 	{
 		g_score ++;
+		if (g_score > best_score)
+		{
+			best_score = g_score;
+		}
+		if (g_score >= 5)
+		{
+			sleeptime = 200;
+		}
+		else if (g_score >=10)
+		{
+			sleeptime = 100;
+		}
 		PrintScore();
 		CreateFood();
 		return 1;
@@ -217,8 +276,10 @@ int GetFood()
 
 void PrintScore()
 {
-	gotoxy(10,HIGH+5);
+	gotoxy(10,HIGH+2);
 	printf("Your score is: %d\n", g_score);
+	gotoxy(10,HIGH+4);
+	printf("Your best score is: %d\n", best_score);
 }
 
 int TouchWall()
@@ -248,11 +309,43 @@ int BiteSelf()
 	return 0;
 }
 
-int GameOver()
+int Dead()
 {
 	if (TouchWall()==1 || BiteSelf()==1)
 	{
 		return 1;
 	}
 	return 0;
+}
+
+void GameOver()
+{
+	system("cls");
+	gotoxy(5,HIGH/3);
+	int i;
+	for (i = 1; i <= WIDTH/2; i++)
+	{
+		printf("※");
+	}
+	printf("\n");
+	gotoxy(5,HIGH*2/3);
+	for (i = 1; i <= WIDTH/2; i++)
+	{
+		printf("※");
+	}
+	printf("\n");
+	gotoxy(20,HIGH/2);
+	printf("GAME OVER");
+	gotoxy(15,HIGH*3/5);
+	printf("play again: press Y     exit: press N");
+	char c;
+	c = getch();
+	if (c == 'y' || c == 'Y')
+	{
+		return;
+	}
+	else if (c == 'n' || c == 'N')
+	{
+		exit(0);
+	}
 }
