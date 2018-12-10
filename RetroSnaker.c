@@ -16,9 +16,11 @@ int food[2];
 
 Snake* head;
 int g_direction = 1;//全局变量：蛇的方向 
-int g_score = 0;
-int sleeptime = 300;
-int best_score; 
+int g_score = 0; 	//当前得分 
+int sleeptime = 300;//刷新时间  时间越小，速度越快 
+int best_score;  	//历史最高分
+int speed = 20;      //控制加速和减速 
+int add_score = 10;	//每次吃到食物所加分数 
 
 void gotoxy(int a, int b) { HANDLE hout;     COORD coord;     coord.X = a;     coord.Y = b;     hout = GetStdHandle(STD_OUTPUT_HANDLE);     SetConsoleCursorPosition(hout, coord); }
 void Menu();
@@ -223,7 +225,32 @@ void ChangeDir()
 			case 'd':
 				if (g_direction != 3) 
 				g_direction = 4;
-				break;	
+				break;
+			case 27: //Esc键对应的Ascii值 
+				gotoxy(5,HIGH+1);
+				printf("Press any key to continue");
+				getch(); //按Esc键暂停，按任意键继续 
+				gotoxy(5,HIGH+1);
+				printf("                           ");
+				break;
+			case 112: //F1键 控制加速
+				if (sleeptime - speed > 0)
+				{
+					sleeptime -= speed;
+					add_score += 5;  //加速时每个食物的分数奖励变高 
+					gotoxy(30,HIGH+2);
+					printf("sleeptime now: %d  add_score now: %d", sleeptime, add_score);
+				}
+				break;
+			case 113: //F2键 控制减速
+				if (add_score - 5 >= 0)
+				{
+					sleeptime += speed;
+					add_score -= 3;  //减速时有分数惩罚 
+					gotoxy(30,HIGH+2);
+					printf("sleeptime now: %d  add_score now: %d", sleeptime, add_score);
+				}
+				break;  
 		}
 	}
 }
@@ -251,18 +278,25 @@ int GetFood()
 {
 	if (head->x == food[0] && head->y == food[1])//如果吃到食物，即蛇头坐标等于食物坐标 
 	{
-		g_score ++;
+		g_score += add_score;
 		if (g_score > best_score)
 		{
 			best_score = g_score;
 		}
 		if (g_score >= 5)
 		{
-			sleeptime = 200;
+			if (sleeptime - 100 > 0)
+			sleeptime -= 100;
 		}
-		else if (g_score >=10)
+		else if (g_score >= 10)
 		{
-			sleeptime = 100;
+			if (sleeptime - 50 > 0)
+			sleeptime -= 50;
+		}
+		else if (g_score >= 15)
+		{
+			if (sleeptime - 20 > 0)
+			sleeptime -= 20;
 		}
 		PrintScore();
 		CreateFood();
@@ -278,13 +312,13 @@ void PrintScore()
 {
 	gotoxy(10,HIGH+2);
 	printf("Your score is: %d\n", g_score);
-	gotoxy(10,HIGH+4);
+	gotoxy(10,HIGH+3);
 	printf("Your best score is: %d\n", best_score);
 }
 
 int TouchWall()
 {
-	if (head->x <= 0 || head->x >= WIDTH)
+	if (head->x <= 0 || head->x >= WIDTH-1)
 	{
 		return 1;
 	}
@@ -338,7 +372,9 @@ void GameOver()
 	printf("GAME OVER");
 	gotoxy(15,HIGH*3/5);
 	printf("play again: press Y     exit: press N");
-	char c;
+	char c; //变量声明必须放在lable之前！！
+	//否则会报错“a label can only be part of a statement and a declaration is not a statement” 
+	again:
 	c = getch();
 	if (c == 'y' || c == 'Y')
 	{
@@ -347,5 +383,11 @@ void GameOver()
 	else if (c == 'n' || c == 'N')
 	{
 		exit(0);
+	}
+	else
+	{
+		gotoxy(15,HIGH+1);
+		printf("Y or N only!");
+		goto again;
 	}
 }
